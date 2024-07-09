@@ -29,7 +29,7 @@ type viewProfissionalProps = z.infer<typeof profissionalSchema>
 
 function VisualizacaoDetalhadaProfissional({ profissional }: { profissional: viewProfissionalProps }) {
     return (
-        <Paper elevation={3} sx={{ padding: 2 }}>
+        <Box sx={{ padding: 2 }}>
             <Typography variant="h5" gutterBottom>
                 Detalhes do Profissional
             </Typography>
@@ -48,7 +48,7 @@ function VisualizacaoDetalhadaProfissional({ profissional }: { profissional: vie
                     <strong>Especialidade:</strong> {profissional.especialidade}
                 </Typography>
             </Box>
-        </Paper>
+        </Box>
     );
 }
 
@@ -92,9 +92,9 @@ export default function PageCrudProfissionais () {
                         />
                 </Paper>
 
-                <Box flex={3}>
+                <Paper sx={{flex:3}}>
                     <VisualizacaoDetalhadaProfissional profissional={selectedProfissional ?? { id: 0, nome: '', email: '', telefone: '', especialidade: '' }} />
-                </Box>
+                </Paper>
             </Box>
         </DashboardLayout>
     )
