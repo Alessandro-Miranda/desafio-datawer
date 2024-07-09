@@ -19,7 +19,7 @@ export default function DashboardLayout ({ children }: LayoutProps) {
 
     return (
         <>
-            <AppBar position="sticky">
+            <AppBar position="sticky" elevation={2}>
                 <Box sx={headerStyle}>
                     <Typography variant="h6">Dashboard | Profissionais</Typography>
                     <Button variant="text" style={{color: 'white'}} onClick={()=>route.push('/')}>Sair</Button>
