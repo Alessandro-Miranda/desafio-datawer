@@ -1,7 +1,11 @@
 import DashboardLayout from "./layout"
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/DeleteOutlined';
+import SaveIcon from '@mui/icons-material/Save';
+import CancelIcon from '@mui/icons-material/Close';
 import { Box, Typography, Paper, Divider, Fab, Alert, Snackbar } from "@mui/material";
-import { DataGrid, GridAddIcon, GridCellEditStopParams, GridRowModel } from "@mui/x-data-grid";
-import { useState } from "react";
+import { DataGrid, GridActionsCellItem, GridAddIcon, GridCellEditStopParams, GridColDef, GridRowId, GridRowModel, GridRowModes, GridRowModesModel } from "@mui/x-data-grid";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 
 const initialRows = [
@@ -11,13 +15,58 @@ const initialRows = [
     { id: 4, nome: 'Ana', email: 'ana@gmail.com', telefone: '987654321', especialidade: 'Pediatra' },
 ]
 
-const columns = [
-    { field: 'id', headerName: 'ID', width: 90 },
-    { field: 'nome', headerName: 'Nome', width: 150, editable: true },
-    { field: 'email', headerName: 'E-mail', width: 150, editable: true },
-    { field: 'telefone', headerName: 'Telefone', width: 150, editable: true },
-    { field: 'especialidade', headerName: 'Especialidade', width: 150, editable: true },
-]
+function getRowModel({modes, handleEditClick, handleDeleteClick, handleSaveClick, handleCancelClick} : {modes: GridRowModesModel, handleEditClick: (id: GridRowId) => () => void, handleDeleteClick: (id: GridRowId) => () => void, handleSaveClick: (id: GridRowId) => () => void, handleCancelClick: (id: GridRowId) => () => void}): GridColDef[] {
+    const viewRowModel: GridColDef[] = [
+        { field: 'id', headerName: 'ID', width: 90 },
+        { field: 'nome', headerName: 'Nome', width: 150, editable: true },
+        { field: 'email', headerName: 'E-mail', width: 150, editable: true },
+        { field: 'telefone', headerName: 'Telefone', width: 150, editable: true },
+        { field: 'especialidade', headerName: 'Especialidade', width: 150, editable: true },
+        { field: 'actions', type: 'actions', headerName: 'Ações', width: 100, cellClassName: 'actions',
+            getActions: ({ id } : {id: GridRowId}) => {
+                const isInEditMode = modes[id]?.mode === GridRowModes.Edit;
+        
+                if (isInEditMode) {
+                  return [
+                    <GridActionsCellItem
+                      icon={<SaveIcon />}
+                      label="Save"
+                      sx={{
+                        color: 'primary.main',
+                      }}
+                      onClick={handleSaveClick(id)}
+                    />,
+                    <GridActionsCellItem
+                      icon={<CancelIcon />}
+                      label="Cancel"
+                      className="textPrimary"
+                      onClick={handleCancelClick(id)}
+                      color="inherit"
+                    />,
+                  ];
+                }
+        
+                return [
+                  <GridActionsCellItem
+                    icon={<EditIcon />}
+                    label="Edit"
+                    className="textPrimary"
+                    onClick={handleEditClick(id)}
+                    color="inherit"
+                  />,
+                  <GridActionsCellItem
+                    icon={<DeleteIcon />}
+                    label="Delete"
+                    onClick={handleDeleteClick(id)}
+                    color="inherit"
+                  />,
+                ];
+            },
+        },
+    ];
+
+    return viewRowModel;
+}
 
 const profissionalSchema = z.object({
     id: z.number(),
@@ -25,6 +74,7 @@ const profissionalSchema = z.object({
     email: z.string(),
     telefone: z.string(),
     especialidade: z.string(),
+    isNew: z.optional(z.boolean()),
 })
 
 type viewProfissionalProps = z.infer<typeof profissionalSchema>
@@ -76,10 +126,11 @@ export default function PageCrudProfissionais () {
     const [selectedProfissional, setSelectedProfissional] = useState<viewProfissionalProps | null>(null)
     const [checkboxSelection, setCheckboxSelection] = useState(false)
     const [alertas, setAlertas] = useState<{mensagem: string, tipo: 'success' | 'error' | 'warning' | 'info'}[]>([])
+    const [rowModesModel, setRowModesModel] = useState<GridRowModesModel>({});
 
     const processRowUpdate = (newRow: GridRowModel, oldRow: GridRowModel) => {
         const updatedRows = rows.map((row) =>
-            row.id === newRow.id ? newRow : row
+            row.id === newRow.id ? {...newRow, isNew: false} : row
         )
         setRows(updatedRows as z.infer<typeof profissionalSchema>[])
         if (selectedProfissional && selectedProfissional.id === newRow.id) {
@@ -89,17 +140,13 @@ export default function PageCrudProfissionais () {
     }
 
     const handleAddProfissional = () => {
-        if (rows.find((row) => {
-                const keys = Object.keys(row).filter((key) => key !== 'id');
-                return keys.every((key) => row[key as keyof viewProfissionalProps] === '');
-            })
-        ) {
-            setAlertas(prev => [...prev, {mensagem: 'Preencha os campos do profissional antes de adicionar um novo', tipo: 'warning', onClose: (index:number)=>removerAlerta(index)}]);
+        if (rows.find((row) => row.isNew)) {
+            setAlertas(prev => [...prev, {mensagem: 'Preencha os campos do profissional antes de adicionar um novo', tipo: 'error', onClose: (index:number)=>removerAlerta(index)}]);
             return;
         }
 
         const newId = Math.max(...rows.map((row) => row.id)) + 1
-        const newProfissional = { id: newId, nome: '', email: '', telefone: '', especialidade: '' }
+        const newProfissional = { id: newId, nome: '', email: '', telefone: '', especialidade: '', isNew: true }
         setRows([...rows, newProfissional])
     }
 
@@ -107,17 +154,60 @@ export default function PageCrudProfissionais () {
         setAlertas(prevAlertas => prevAlertas.filter((_, i) => i !== index))
     }
 
+    const handleEditClick = (id: GridRowId) => () => {
+        setRowModesModel({ ...rowModesModel, [id]: { mode: GridRowModes.Edit } });
+    }
+    
+    const handleSaveClick = (id: GridRowId) => () => {
+        setRowModesModel({ ...rowModesModel, [id]: { mode: GridRowModes.View } });
+    }
+
+    const handleDeleteClick = (id: GridRowId) => () => {
+        setRows(rows.filter((row) => row.id !== id));
+    }
+
+    const handleCancelClick = (id: GridRowId) => () => {
+        setRowModesModel({
+            ...rowModesModel,
+            [id]: { mode: GridRowModes.View, ignoreModifications: true },
+        });
+
+        const editedRow = rows.find((row) => row.id === id);
+
+        if (editedRow!.isNew) {
+            setRows(rows.filter((row) => row.id !== id));
+        }
+    };
+
+    const handleRowModesModelChange = (newRowModesModel: GridRowModesModel) => {
+        setRowModesModel(newRowModesModel);
+    };
+
+    const currentColumns = getRowModel({
+        modes: rowModesModel,
+        handleEditClick,
+        handleDeleteClick,
+        handleSaveClick,
+        handleCancelClick: handleCancelClick
+    });
+
     return (
         <DashboardLayout>
             <ToastsList alertas={alertas} />
             <Box display={'flex'} flexDirection={'row'} gap={2}>
                 <Paper sx={{flex:7, overflow:'auto', height:600, position: 'relative'}}>
-                    <Fab variant="circular" size="medium" color="primary" aria-label="add" sx={{position: 'absolute', bottom: 64, right: 32}} onClick={handleAddProfissional}>
-                        <GridAddIcon />
-                    </Fab>
+                    <Box sx={{position: 'absolute', bottom: 64, right: 32, display:'flex', gap: 1}}>
+                        <Fab variant="extended" size="large" color="primary" aria-label="add" onClick={handleAddProfissional}>
+                            <GridAddIcon />
+                            <Typography variant="button">INCLUIR NOVO</Typography>
+                        </Fab>
+                        <Fab variant="extended" size="large" color="warning" aria-label="add" onClick={()=>console.log('funcinoalidade em desenvolvimento')}>
+                            <Typography variant="button">Salvar Tudo</Typography>
+                        </Fab>
+                    </Box>
                     <DataGrid
                         rows={rows}
-                        columns={columns}
+                        columns={currentColumns}
                         initialState={{
                             pagination: {
                                 paginationModel: { page: 0, pageSize: 15 },
@@ -125,6 +215,9 @@ export default function PageCrudProfissionais () {
                         }}
                         pageSizeOptions={[15, 50, 100]}
                         checkboxSelection={checkboxSelection}
+                        rowModesModel={rowModesModel}
+                        onRowModesModelChange={handleRowModesModelChange}
+                        editMode="row"
                         onRowClick={
                             (row) => {
                                 console.log(row)
