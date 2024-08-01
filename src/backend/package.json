@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Simple API created for datawer code challenge.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch ./index.ts --watch",
+    "build": "tsc",
+    "test": ""
+  },
+  "keywords": [],
+  "author": "Alessandro Lima de Miranda",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^22.0.2",
+    "tsx": "^4.16.3",
+    "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}
